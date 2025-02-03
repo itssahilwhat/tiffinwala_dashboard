@@ -146,15 +146,20 @@ with viz_col2:
     # Word Cloud
     st.subheader("🔍 Top Keywords")
     text = ' '.join(filtered_df['description'].str.lower())
-    stop_words = set(stopwords.words('english'))
-    wordcloud = WordCloud(width=800, height=400,
-                          background_color='white',
-                          stopwords=stop_words,
-                          colormap='viridis').generate(text)
-    plt.figure(figsize=(10, 5))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis('off')
-    st.pyplot(plt, use_container_width=True)
+
+    # Check if there's any text data before generating the word cloud
+    if text.strip():  # If text is not empty or only whitespace
+        stop_words = set(stopwords.words('english'))
+        wordcloud = WordCloud(width=800, height=400,
+                              background_color='white',
+                              stopwords=stop_words,
+                              colormap='viridis').generate(text)
+        plt.figure(figsize=(10, 5))
+        plt.imshow(wordcloud, interpolation='bilinear')
+        plt.axis('off')
+        st.pyplot(plt, use_container_width=True)
+    else:
+        st.write("No text data available for the word cloud.")
 
     # Dish Popularity
     st.subheader("🍽️ Dish Mentions")
