@@ -11,9 +11,10 @@ import numpy as np
 import json
 import nltk
 
-# Download NLTK stopwords
-nltk.download('stopwords')
+nltk.download('averaged_perceptron_tagger')
 nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('stopwords')
 
 # Setup
 st.set_page_config(page_title="Tiffinwala Analytics", layout="wide", page_icon="🥘")
