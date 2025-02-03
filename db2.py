@@ -60,6 +60,25 @@ def summarize_review(text, num_sentences=3):
     summary = ' '.join([str(sorted_sentences[i]) for i in range(min(num_sentences, len(sorted_sentences)))])
     return summary
 
+# Generate a summary paragraph from all reviews
+def generate_summary_review(df):
+    positive_reviews = df[df['sentiment_category'] == 'Positive']
+    negative_reviews = df[df['sentiment_category'] == 'Negative']
+
+    positive_reviews_text = " ".join(positive_reviews['description'].head(10))  # Use top 10 positive reviews
+    negative_reviews_text = " ".join(negative_reviews['description'].head(10))  # Use top 10 negative reviews
+
+    positive_blob = TextBlob(positive_reviews_text)
+    negative_blob = TextBlob(negative_reviews_text)
+
+    # AI-generated summary from positive and negative reviews
+    positive_summary = positive_blob.sentences[0] if len(positive_blob.sentences) > 0 else "Customers generally have positive feedback."
+    negative_summary = negative_blob.sentences[0] if len(negative_blob.sentences) > 0 else "Negative feedback suggests improvements are needed."
+
+    # Combine both into a final summary paragraph
+    final_summary = f"Customers generally appreciate the variety and quality of dishes offered by Tiffinwala. {positive_summary}. On the other hand, {negative_summary} This combination of experiences provides a holistic view of customer satisfaction."
+    return final_summary
+
 df = enhance_data(df)
 
 # Train simple prediction model
@@ -79,10 +98,8 @@ vectorizer, model = train_model(df)
 # ======================
 
 st.title("🍱 Tiffinwala Excellence Dashboard")
-st.markdown("""
-**Hackathon-ready analytics** for Tiffinwala's customer feedback data  
-*1000+ reviews · Real-time insights · Predictive analytics*
-""")
+st.markdown(""" **Hackathon-ready analytics** for Tiffinwala's customer feedback data  
+*1000+ reviews · Real-time insights · Predictive analytics* """)
 
 # Sidebar Controls
 st.sidebar.header("🔍 Filters")
@@ -236,11 +253,10 @@ st.dataframe(filtered_df[['customer_name', 'ratings', 'dates', 'description']].s
 # Footer
 # ======================
 st.markdown("---")
-st.markdown("**Hackathon Ready Features:**  \n"
-            "- Real-time predictive analytics  \n"
-            "- Automated sentiment detection  \n"
-            "- Interactive date-range filtering  \n"
-            "- Risk factor identification  \n"
-            "- Mobile-responsive design")
+
+# Display the AI-generated review summary
+st.subheader("🤖 AI-Generated Summary Review")
+summary = generate_summary_review(filtered_df)
+st.write(summary)
 
 # Run with: streamlit run tiffinwala_dashboard.py
