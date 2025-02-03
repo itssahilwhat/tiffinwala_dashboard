@@ -101,12 +101,20 @@ filtered_df = df[
 st.header("📊 Performance Overview")
 
 metric_cols = st.columns(4)
-metric_cols[0].metric("Total Reviews", len(filtered_df))
-metric_cols[1].metric("Avg Rating", f"{filtered_df['ratings'].mean():.1f} ⭐")
-metric_cols[2].metric("Positive Sentiment",
-                      f"{filtered_df[filtered_df['sentiment_category'] == 'Positive'].shape[0]/len(filtered_df):.0%}")
-metric_cols[3].metric("Low Rating Risk",
-                      f"{model.predict_proba(vectorizer.transform(filtered_df['description']))[:,1].mean():.0%}")
+
+# Ensure filtered_df is not empty before performing calculations
+if len(filtered_df) > 0:
+    metric_cols[0].metric("Total Reviews", len(filtered_df))
+    metric_cols[1].metric("Avg Rating", f"{filtered_df['ratings'].mean():.1f} ⭐")
+    positive_sentiment = f"{filtered_df[filtered_df['sentiment_category'] == 'Positive'].shape[0] / len(filtered_df):.0%}"
+    metric_cols[2].metric("Positive Sentiment", positive_sentiment)
+    low_rating_risk = f"{model.predict_proba(vectorizer.transform(filtered_df['description']))[:,1].mean():.0%}"
+    metric_cols[3].metric("Low Rating Risk", low_rating_risk)
+else:
+    metric_cols[0].metric("Total Reviews", 0)
+    metric_cols[1].metric("Avg Rating", "N/A")
+    metric_cols[2].metric("Positive Sentiment", "N/A")
+    metric_cols[3].metric("Low Rating Risk", "N/A")
 
 # ======================
 # Visualizations
