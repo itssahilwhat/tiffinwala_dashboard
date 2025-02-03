@@ -1,4 +1,3 @@
-# tiffinwala_dashboard.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -6,13 +5,13 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from textblob import TextBlob
 from nltk.corpus import stopwords
-from sklearn.feature_extraction.text import TfidfVectorizer  # Fixed import
-from sklearn.linear_model import LogisticRegression  # Fixed import
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 import numpy as np
 import json
+import nltk
 
 # Download NLTK stopwords
-import nltk
 nltk.download('stopwords')
 
 # Setup
@@ -31,7 +30,9 @@ def load_data():
 df = load_data()
 
 # List of dish keywords
-dish_keywords = ['undhiyu', 'khandvi', 'thepla', 'dhokla', 'kadhi', 'fafda', 'gathiya']  # Ensure this is defined globally
+dish_keywords = ['dal', 'paneer', 'thepla', 'khandvi', 'undhiyu', 'kadhi', 'fafda', 'bajra rotla', 'Sev Tameta Nu Shaak',
+                 'Ringan No Olo', 'Bhinda Nu Shaak', 'Dudhi Nu Shaak', 'Batata Nu Shaak', 'Lasaniya Batata', 'Karela Nu Shaak',
+                 'Dudhi Chana Nu Shaak', 'Patra', 'Khaman', 'Handvo', 'Puri', 'Mooli Paratha', 'Masala Khichdi', 'Ghughra']  # Ensure this is defined globally
 
 # Preprocess data
 @st.cache_data
@@ -42,12 +43,22 @@ def enhance_data(df):
                                       bins=[-1, -0.1, 0.1, 1],
                                       labels=['Negative', 'Neutral', 'Positive'])
 
+    # Summarize reviews
+    df['review_summary'] = df['description'].apply(lambda x: summarize_review(x))
+
     # Extract mentioned dishes
     for dish in dish_keywords:
         df[dish] = df['description'].str.contains(dish, case=False)
 
     return df
 
+# Review Summarization using TextBlob
+def summarize_review(text, num_sentences=3):
+    blob = TextBlob(text)
+    sentences = blob.sentences
+    sorted_sentences = sorted(sentences, key=lambda s: len(s), reverse=True)
+    summary = ' '.join([str(sorted_sentences[i]) for i in range(min(num_sentences, len(sorted_sentences)))])
+    return summary
 
 df = enhance_data(df)
 
@@ -193,6 +204,21 @@ risk_col1.dataframe(top_risk_factors.style.background_gradient(cmap='Reds'), use
 
 risk_col2.markdown("**Top Positive Factors**")
 risk_col2.dataframe(top_positive_factors.style.background_gradient(cmap='Greens'), use_container_width=True)
+
+# ======================
+# Review Summaries
+# ======================
+st.header("📋 Review Summaries")
+
+# Display review summaries in a new column
+st.dataframe(filtered_df[['customer_name', 'ratings', 'dates', 'review_summary']].sort_values('dates', ascending=False),
+             hide_index=True,
+             column_config={
+                 "dates": st.column_config.DateColumn("Date"),
+                 "ratings": st.column_config.NumberColumn("Rating", format="%d ⭐"),
+                 "review_summary": st.column_config.TextColumn("Review Summary")
+             },
+             use_container_width=True)
 
 # ======================
 # Raw Data Explorer
