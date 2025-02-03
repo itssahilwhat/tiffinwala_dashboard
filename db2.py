@@ -13,6 +13,7 @@ import nltk
 
 # Download NLTK stopwords
 nltk.download('stopwords')
+nltk.download('punkt')
 
 # Setup
 st.set_page_config(page_title="Tiffinwala Analytics", layout="wide", page_icon="🥘")
