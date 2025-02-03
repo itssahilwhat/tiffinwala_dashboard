@@ -1,0 +1,15 @@
+# Application files
+app.py
+dashboard.py
+faker.py
+fg.ipynb
+
+# Data files
+businesses.json
+customer.json
+
+# Static files
+static/
+
+# Template files
+templates/
