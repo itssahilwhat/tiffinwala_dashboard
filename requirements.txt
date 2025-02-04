@@ -2,6 +2,7 @@ streamlit
 transformers
 pandas
 plotly
+pytorch
 wordcloud
 matplotlib
 textblob
