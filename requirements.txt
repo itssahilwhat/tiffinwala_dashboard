@@ -1,13 +1,11 @@
 streamlit
-transformers
 pandas
 plotly
-torch
-torchvision
-torchaudio
 wordcloud
 matplotlib
 textblob
 nltk
 scikit-learn
 numpy
+transformers
+torch

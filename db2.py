@@ -130,12 +130,10 @@ def load_summarizer():
 def generate_summary(texts):
     # Combine reviews and clean text
     combined_text = " ".join(texts)
-
     # Limit the input length to reduce memory usage and processing time
     max_input_length = 1024  # Adjusted input length for faster summarization
     if len(combined_text) > max_input_length:
         combined_text = combined_text[:max_input_length]
-
     summarizer = load_summarizer()
     try:
         # Generate summary with reduced output length to save resources
@@ -146,6 +144,12 @@ def generate_summary(texts):
             do_sample=False,
             truncation=True
         )[0]['summary_text']
+
+        # Post-process summary for better readability
+        summary = summary.capitalize()  # Capitalize the first letter
+        summary = summary.replace(". ", ". ")  # Ensure proper spacing after periods
+        summary = summary.strip() + "."  # Ensure the summary ends with a period
+
         return summary
     except Exception as e:
         st.error(f"Error generating summary: {str(e)}")
