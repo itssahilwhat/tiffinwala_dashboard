@@ -24,7 +24,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for enhanced styling
+# Custom CSS for enhanced styling and larger fonts
 st.markdown("""
 <style>
     /* Main content styling */
@@ -49,6 +49,7 @@ st.markdown("""
         border: 1px solid #e0e0e0 !important;
         border-radius: 10px !important;
         transition: all 0.3s ease;
+        font-size: 22px !important;
     }
     
     [data-testid="metric-container"]:hover {
@@ -61,10 +62,15 @@ st.markdown("""
         color: #2d3436 !important;
         border-bottom: 3px solid #0984e3;
         padding-bottom: 0.5rem;
+        font-size: 32px !important;
+    }
+    
+    /* Increase global font size */
+    html, body, [class*="css"] {
+        font-size: 18px !important;
     }
 </style>
 """, unsafe_allow_html=True)
-
 
 plt.style.use('ggplot')
 
@@ -90,18 +96,15 @@ dish_keywords = [
 # Data Preprocessing
 @st.cache_data
 def enhance_data(df):
-    # Sentiment analysis
+    # Sentiment analysis using TextBlob
     df['sentiment'] = df['description'].apply(lambda x: TextBlob(x).sentiment.polarity)
     df['sentiment_category'] = pd.cut(df['sentiment'],
                                       bins=[-1, -0.1, 0.1, 1],
                                       labels=['Negative', 'Neutral', 'Positive'])
-
-    # Extract mentioned dishes (ensuring lowercase for comparison)
+    # Convert description to lowercase for consistent matching
     df['description'] = df['description'].str.lower()
-
     for dish in dish_keywords:
         df[dish] = df['description'].str.contains(dish, case=False, na=False)
-
     return df
 
 df = enhance_data(df)
@@ -111,36 +114,35 @@ df = enhance_data(df)
 def train_model(df):
     vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
     X = vectorizer.fit_transform(df['description'])
-    y = (df['ratings'] <= 2).astype(int)  # Predict low ratings
+    y = (df['ratings'] <= 2).astype(int)  # Predict low ratings (1-2 stars)
     model = LogisticRegression()
     model.fit(X, y)
     return vectorizer, model
 
 vectorizer, model = train_model(df)
 
-# Load Summarizer
+# Load Summarizer (using a smaller model for faster inference)
 @st.cache_resource
 def load_summarizer():
-    # Use CPU for now to avoid CUDA errors
-    return pipeline("summarization", model="facebook/bart-large-cnn", device=-1)
+    return pipeline("summarization", model="facebook/bart-large-cnn", device=0)
 
-# Generate AI Summary
+# Generate AI Summary with optimizations
 def generate_summary(texts):
-    # Combine reviews and clean
+    # Combine reviews and clean text
     combined_text = " ".join(texts)
 
-    # Truncate text to avoid exceeding model's max input length (1024 tokens for BART)
-    max_input_length = 2000  # Increased buffer for better context
+    # Limit the input length to reduce memory usage and processing time
+    max_input_length = 1024  # Adjusted input length for faster summarization
     if len(combined_text) > max_input_length:
         combined_text = combined_text[:max_input_length]
 
-    # Generate summary
     summarizer = load_summarizer()
     try:
+        # Generate summary with reduced output length to save resources
         summary = summarizer(
             combined_text,
-            max_length=300,  # Increased summary length
-            min_length=150,
+            max_length=150,  # Adjust summary length if needed
+            min_length=80,
             do_sample=False,
             truncation=True
         )[0]['summary_text']
@@ -164,20 +166,17 @@ st.markdown("""
 with st.sidebar:
     st.header("🔍 Control Panel")
     st.markdown("---")
-
     selected_ratings = st.multiselect(
         "**Filter by Ratings**",
         options=sorted(df['ratings'].unique()),
         default=[1, 2, 3, 4, 5]
     )
-
     date_range = st.date_input(
         "**Date Range**",
         value=[df['dates'].min(), df['dates'].max()],
         min_value=df['dates'].min(),
         max_value=df['dates'].max()
     )
-
     st.markdown("---")
     st.markdown("**Made with ❤️ by Your Team**")
 
@@ -229,34 +228,28 @@ if len(filtered_df) > 0:
                 # Key highlights
                 st.subheader("🔑 Strategic Insights")
                 insight_cols = st.columns(3)
-
                 insight_cols[0].metric(
                     "Top Performer Dish",
                     filtered_df[dish_keywords].sum().idxmax(),
                     help="Most frequently mentioned dish"
                 )
-
                 insight_cols[1].metric(
                     "Peak Feedback Day",
                     filtered_df['dates'].dt.day_name().mode()[0],
                     help="Day with most reviews"
                 )
-
                 insight_cols[2].metric(
                     "Dominant Sentiment",
                     filtered_df['sentiment_category'].mode()[0],
                     delta_color="off",
                     help="Most common customer sentiment"
                 )
-
                 # Sentiment progress bars
                 st.subheader("📈 Sentiment Distribution")
                 sentiment_progress = filtered_df['sentiment_category'].value_counts(normalize=True)
-
                 cols = st.columns(3)
                 for idx, (sentiment, value) in enumerate(sentiment_progress.items()):
                     cols[idx].progress(value, text=f"{sentiment} ({value:.0%})")
-
             else:
                 st.warning("Could not generate summary. Please try different filters.")
         except Exception as e:
@@ -285,7 +278,11 @@ with viz_col1:
         fig.update_layout(
             hovermode="x unified",
             height=400,
-            margin=dict(l=0, r=0)
+            margin=dict(l=0, r=0),
+            font=dict(size=18),
+            title=dict(font=dict(size=24)),
+            xaxis=dict(title=dict(font=dict(size=20))),
+            yaxis=dict(title=dict(font=dict(size=20)))
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
@@ -300,7 +297,7 @@ with viz_col1:
                      labels={'value': 'Mentions', 'index': 'Dish'},
                      color=dish_counts.values,
                      color_continuous_scale='Blues')
-        fig.update_layout(showlegend=False, height=400)
+        fig.update_layout(showlegend=False, height=400, font=dict(size=18))
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No dish mentions found in filtered reviews")
@@ -315,7 +312,7 @@ with viz_col2:
                      values=sentiment_counts.values,
                      hole=0.4,
                      color_discrete_sequence=['#00b894', '#fdcb6e', '#d63031'])
-        fig.update_layout(height=400)
+        fig.update_layout(height=400, font=dict(size=18))
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No sentiment data available")
