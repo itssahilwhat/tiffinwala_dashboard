@@ -11,10 +11,13 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 import numpy as np
 import json
+import os
 from transformers import pipeline
 
 # Download NLTK stopwords if not already downloaded
-nltk.download('stopwords')
+nltk_data_path = os.path.expanduser('~/nltk_data')
+if not os.path.exists(os.path.join(nltk_data_path, 'corpora', 'stopwords')):
+    nltk.download('stopwords')
 
 # Streamlit Setup
 st.set_page_config(
@@ -139,7 +142,7 @@ def generate_summary(texts):
         # Generate summary with reduced output length to save resources
         summary = summarizer(
             combined_text,
-            max_length=150,  # Adjust summary length if needed
+            max_length=150,
             min_length=80,
             do_sample=False,
             truncation=True
