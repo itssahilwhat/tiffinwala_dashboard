@@ -17,7 +17,7 @@ from transformers import pipeline
 # Download NLTK stopwords if not already downloaded
 nltk_data_path = os.path.expanduser('~/nltk_data')
 if not os.path.exists(os.path.join(nltk_data_path, 'corpora', 'stopwords')):
-    nltk.download('stopwords')
+    nltk.download('stopwords', download_dir=nltk_data_path)
 
 # Streamlit Setup
 st.set_page_config(
@@ -30,47 +30,57 @@ st.set_page_config(
 # Custom CSS for enhanced styling and larger fonts
 st.markdown("""
 <style>
-    /* Main content styling */
+    /* Global font and background settings */
+    html, body {
+        font-size: 20px !important;
+        background-color: #f0f2f6;
+    }
+    
+    /* Container padding */
     .css-18e3th9 {
         padding: 2rem 5rem;
     }
     
-    /* Updated Summary text styling for better contrast */
-    .summary-text {
-        font-size: 18px !important;
-        line-height: 1.6 !important;
-        padding: 1.5rem;
-        background: #2d3436;  /* Dark background */
-        color: #ffffff;       /* White text */
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    /* Title and Header Styling */
+    h1 {
+        font-size: 40px !important;
+        color: #2d3436 !important;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    h2, h3, h4 {
+        color: #2d3436 !important;
+        font-weight: 600;
     }
     
     /* Metric cards styling */
     [data-testid="metric-container"] {
+        font-size: 22px !important;
         padding: 1rem !important;
         border: 1px solid #e0e0e0 !important;
         border-radius: 10px !important;
         transition: all 0.3s ease;
-        font-size: 22px !important;
     }
-    
     [data-testid="metric-container"]:hover {
         transform: translateY(-5px);
         box-shadow: 0 8px 16px rgba(0,0,0,0.1);
     }
     
-    /* Header styling */
-    h1 {
-        color: #2d3436 !important;
-        border-bottom: 3px solid #0984e3;
-        padding-bottom: 0.5rem;
-        font-size: 32px !important;
+    /* AI Summary Box Styling */
+    .summary-text {
+        font-size: 22px !important;
+        line-height: 1.8 !important;
+        padding: 2rem;
+        background: #2d3436;
+        color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        margin: 1rem 0;
     }
     
-    /* Increase global font size */
-    html, body, [class*="css"] {
-        font-size: 18px !important;
+    /* Sidebar text */
+    .css-1d391kg {
+        font-size: 20px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -124,35 +134,34 @@ def train_model(df):
 
 vectorizer, model = train_model(df)
 
-# Load Summarizer (using a smaller model for faster inference)
+# Load Summarizer (using a smaller model for faster inference on CUDA)
 @st.cache_resource
 def load_summarizer():
-    return pipeline("summarization", model="facebook/bart-large-cnn", device=0)
+    return pipeline("summarization", model="sshleifer/distilbart-cnn-12-6", device=0)
 
 # Generate AI Summary with optimizations
 def generate_summary(texts):
     # Combine reviews and clean text
     combined_text = " ".join(texts)
     # Limit the input length to reduce memory usage and processing time
-    max_input_length = 1024  # Adjusted input length for faster summarization
+    max_input_length = 1024  # Increased length while still keeping it optimized
     if len(combined_text) > max_input_length:
         combined_text = combined_text[:max_input_length]
     summarizer = load_summarizer()
     try:
-        # Generate summary with reduced output length to save resources
+        # Increase output length while balancing resource usage
         summary = summarizer(
             combined_text,
-            max_length=150,
-            min_length=80,
+            max_length=400,  # Increased summary length
+            min_length=200,
             do_sample=False,
             truncation=True
         )[0]['summary_text']
-
         # Post-process summary for better readability
-        summary = summary.capitalize()  # Capitalize the first letter
-        summary = summary.replace(". ", ". ")  # Ensure proper spacing after periods
-        summary = summary.strip() + "."  # Ensure the summary ends with a period
-
+        summary = summary.capitalize()  # Capitalize first letter
+        summary = summary.strip()  # Remove extra whitespace
+        if not summary.endswith('.'):
+            summary += '.'
         return summary
     except Exception as e:
         st.error(f"Error generating summary: {str(e)}")
@@ -165,7 +174,7 @@ st.title("🍱 Tiffinwala Excellence Dashboard")
 st.markdown("""
 <div style="text-align:center; margin-bottom:2rem;">
     <h3 style="color:#636e72;">Hackathon-Ready Analytics Platform</h3>
-    <p style="font-size:1.1rem;">Transform 1000+ reviews into actionable insights</p>
+    <p style="font-size:1.3rem;">Transform 1000+ reviews into actionable insights</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -199,7 +208,6 @@ filtered_df = df[
 # ======================
 st.header("📊 Executive Summary")
 metric_cols = st.columns(4)
-
 if len(filtered_df) > 0:
     metric_cols[0].metric("Total Reviews", len(filtered_df), help="Total reviews in selected period")
     metric_cols[1].metric("Average Rating",
@@ -220,7 +228,6 @@ else:
 # ======================
 st.markdown("---")
 st.header("🤖 AI-Powered Insights Report")
-
 if len(filtered_df) > 0:
     with st.spinner('Analyzing reviews... This might take a moment'):
         try:
@@ -228,7 +235,7 @@ if len(filtered_df) > 0:
             if summary:
                 st.markdown(f"""
                 <div class="summary-text">
-                    {summary}
+                    <strong>Summary:</strong><br>{summary}
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -251,6 +258,7 @@ if len(filtered_df) > 0:
                     delta_color="off",
                     help="Most common customer sentiment"
                 )
+
                 # Sentiment progress bars
                 st.subheader("📈 Sentiment Distribution")
                 sentiment_progress = filtered_df['sentiment_category'].value_counts(normalize=True)
@@ -269,7 +277,6 @@ else:
 # ======================
 st.markdown("---")
 st.header("📈 Deep Dive Analytics")
-
 viz_col1, viz_col2 = st.columns(2)
 
 with viz_col1:
@@ -349,6 +356,6 @@ with viz_col2:
 st.markdown("---")
 st.markdown("""
 <div style="text-align:center; padding:2rem 0; color:#636e72;">
-    <p style="font-size:0.9rem;">Tiffinwala Analytics Platform · Built for Excellence · Hackathon 2024</p>
+    Tiffinwala Analytics Platform · Built for Excellence · Hackathon 2024
 </div>
 """, unsafe_allow_html=True)
