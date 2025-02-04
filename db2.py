@@ -11,12 +11,61 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 import numpy as np
 import json
+from transformers import pipeline
 
 # Download NLTK stopwords if not already downloaded
 nltk.download('stopwords')
 
 # Streamlit Setup
-st.set_page_config(page_title="Tiffinwala Analytics", layout="wide", page_icon="🥘")
+st.set_page_config(
+    page_title="Tiffinwala Excellence Dashboard",
+    layout="wide",
+    page_icon="🍱",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for enhanced styling
+st.markdown("""
+<style>
+    /* Main content styling */
+    .css-18e3th9 {
+        padding: 2rem 5rem;
+    }
+    
+    /* Updated Summary text styling for better contrast */
+    .summary-text {
+        font-size: 18px !important;
+        line-height: 1.6 !important;
+        padding: 1.5rem;
+        background: #2d3436;  /* Dark background */
+        color: #ffffff;       /* White text */
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Metric cards styling */
+    [data-testid="metric-container"] {
+        padding: 1rem !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 10px !important;
+        transition: all 0.3s ease;
+    }
+    
+    [data-testid="metric-container"]:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    
+    /* Header styling */
+    h1 {
+        color: #2d3436 !important;
+        border-bottom: 3px solid #0984e3;
+        padding-bottom: 0.5rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
 plt.style.use('ggplot')
 
 # Load Data
@@ -69,29 +118,68 @@ def train_model(df):
 
 vectorizer, model = train_model(df)
 
+# Load Summarizer
+@st.cache_resource
+def load_summarizer():
+    # Use CPU for now to avoid CUDA errors
+    return pipeline("summarization", model="facebook/bart-large-cnn", device=-1)
+
+# Generate AI Summary
+def generate_summary(texts):
+    # Combine reviews and clean
+    combined_text = " ".join(texts)
+
+    # Truncate text to avoid exceeding model's max input length (1024 tokens for BART)
+    max_input_length = 2000  # Increased buffer for better context
+    if len(combined_text) > max_input_length:
+        combined_text = combined_text[:max_input_length]
+
+    # Generate summary
+    summarizer = load_summarizer()
+    try:
+        summary = summarizer(
+            combined_text,
+            max_length=300,  # Increased summary length
+            min_length=150,
+            do_sample=False,
+            truncation=True
+        )[0]['summary_text']
+        return summary
+    except Exception as e:
+        st.error(f"Error generating summary: {str(e)}")
+        return None
+
 # ======================
 # Dashboard Layout
 # ======================
 st.title("🍱 Tiffinwala Excellence Dashboard")
 st.markdown("""
-**Hackathon-ready analytics** for Tiffinwala's customer feedback data  
-*1000+ reviews · Real-time insights · Predictive analytics*
-""")
+<div style="text-align:center; margin-bottom:2rem;">
+    <h3 style="color:#636e72;">Hackathon-Ready Analytics Platform</h3>
+    <p style="font-size:1.1rem;">Transform 1000+ reviews into actionable insights</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Sidebar Controls
-st.sidebar.header("🔍 Filters")
-selected_ratings = st.sidebar.multiselect(
-    "Select Ratings",
-    options=sorted(df['ratings'].unique()),
-    default=[1, 2, 3, 4, 5]
-)
+with st.sidebar:
+    st.header("🔍 Control Panel")
+    st.markdown("---")
 
-date_range = st.sidebar.date_input(
-    "📅 Date Range",
-    value=[df['dates'].min(), df['dates'].max()],
-    min_value=df['dates'].min(),
-    max_value=df['dates'].max()
-)
+    selected_ratings = st.multiselect(
+        "**Filter by Ratings**",
+        options=sorted(df['ratings'].unique()),
+        default=[1, 2, 3, 4, 5]
+    )
+
+    date_range = st.date_input(
+        "**Date Range**",
+        value=[df['dates'].min(), df['dates'].max()],
+        min_value=df['dates'].min(),
+        max_value=df['dates'].max()
+    )
+
+    st.markdown("---")
+    st.markdown("**Made with ❤️ by Your Team**")
 
 # Apply filters
 filtered_df = df[
@@ -103,93 +191,160 @@ filtered_df = df[
 # ======================
 # Key Metrics
 # ======================
-st.header("📊 Performance Overview")
-
+st.header("📊 Executive Summary")
 metric_cols = st.columns(4)
 
 if len(filtered_df) > 0:
-    metric_cols[0].metric("Total Reviews", len(filtered_df))
-    metric_cols[1].metric("Avg Rating", f"{filtered_df['ratings'].mean():.1f} ⭐")
-    positive_sentiment = f"{(filtered_df['sentiment_category'] == 'Positive').mean():.0%}"
-    metric_cols[2].metric("Positive Sentiment", positive_sentiment)
-    low_rating_risk = f"{model.predict_proba(vectorizer.transform(filtered_df['description']))[:,1].mean():.0%}"
-    metric_cols[3].metric("Low Rating Risk", low_rating_risk)
+    metric_cols[0].metric("Total Reviews", len(filtered_df), help="Total reviews in selected period")
+    metric_cols[1].metric("Average Rating",
+                          f"{filtered_df['ratings'].mean():.1f} ⭐",
+                          help="Average customer rating (1-5 scale)")
+    metric_cols[2].metric("Positive Sentiment",
+                          f"{(filtered_df['sentiment_category'] == 'Positive').mean():.0%}",
+                          "Percentage of positive reviews")
+    metric_cols[3].metric("Low Rating Risk",
+                          f"{model.predict_proba(vectorizer.transform(filtered_df['description']))[:,1].mean():.0%}",
+                          "Probability of low ratings (1-2 stars)")
 else:
-    metric_cols[0].metric("Total Reviews", 0)
-    metric_cols[1].metric("Avg Rating", "N/A")
-    metric_cols[2].metric("Positive Sentiment", "N/A")
-    metric_cols[3].metric("Low Rating Risk", "N/A")
+    for col in metric_cols:
+        col.metric("No Data", "N/A")
 
 # ======================
-# Visualizations
+# AI-Powered Summary
 # ======================
+st.markdown("---")
+st.header("🤖 AI-Powered Insights Report")
+
+if len(filtered_df) > 0:
+    with st.spinner('Analyzing reviews... This might take a moment'):
+        try:
+            summary = generate_summary(filtered_df['description'].tolist())
+            if summary:
+                st.markdown(f"""
+                <div class="summary-text">
+                    {summary}
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Key highlights
+                st.subheader("🔑 Strategic Insights")
+                insight_cols = st.columns(3)
+
+                insight_cols[0].metric(
+                    "Top Performer Dish",
+                    filtered_df[dish_keywords].sum().idxmax(),
+                    help="Most frequently mentioned dish"
+                )
+
+                insight_cols[1].metric(
+                    "Peak Feedback Day",
+                    filtered_df['dates'].dt.day_name().mode()[0],
+                    help="Day with most reviews"
+                )
+
+                insight_cols[2].metric(
+                    "Dominant Sentiment",
+                    filtered_df['sentiment_category'].mode()[0],
+                    delta_color="off",
+                    help="Most common customer sentiment"
+                )
+
+                # Sentiment progress bars
+                st.subheader("📈 Sentiment Distribution")
+                sentiment_progress = filtered_df['sentiment_category'].value_counts(normalize=True)
+
+                cols = st.columns(3)
+                for idx, (sentiment, value) in enumerate(sentiment_progress.items()):
+                    cols[idx].progress(value, text=f"{sentiment} ({value:.0%})")
+
+            else:
+                st.warning("Could not generate summary. Please try different filters.")
+        except Exception as e:
+            st.error(f"Analysis failed: {str(e)}")
+else:
+    st.warning("No data available for analysis with current filters")
+
+# ======================
+# Interactive Visualizations
+# ======================
+st.markdown("---")
+st.header("📈 Deep Dive Analytics")
+
 viz_col1, viz_col2 = st.columns(2)
 
 with viz_col1:
-    st.subheader("📈 Rating Trends")
-    time_df = filtered_df.set_index('dates').resample('W')['ratings'].mean().reset_index()
-    fig = px.line(time_df, x='dates', y='ratings', template='plotly_white',
-                  labels={'ratings': 'Average Rating'}, height=300)
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("😃😐😡 Sentiment Distribution")
-    sentiment_counts = filtered_df['sentiment_category'].value_counts()
-    fig = px.pie(sentiment_counts, names=sentiment_counts.index,
-                 values=sentiment_counts.values, hole=0.4,
-                 color_discrete_sequence=px.colors.qualitative.Pastel)
-    st.plotly_chart(fig, use_container_width=True)
-
-with viz_col2:
-    st.subheader("🔍 Top Keywords")
-    text = ' '.join(filtered_df['description'])
-
-    if text.strip():
-        stop_words = set(stopwords.words('english'))
-        wordcloud = WordCloud(width=800, height=400,
-                              background_color='white',
-                              stopwords=stop_words,
-                              colormap='viridis').generate(text)
-        plt.figure(figsize=(10, 5))
-        plt.imshow(wordcloud, interpolation='bilinear')
-        plt.axis('off')
-        st.pyplot(plt, use_container_width=True)
+    # Time Series Analysis
+    st.subheader("📅 Rating Trends Over Time")
+    if not filtered_df.empty:
+        time_df = filtered_df.set_index('dates').resample('W')['ratings'].mean().reset_index()
+        fig = px.line(time_df, x='dates', y='ratings',
+                      template='plotly_white',
+                      labels={'ratings': 'Average Rating'},
+                      line_shape="spline",
+                      color_discrete_sequence=['#0984e3'])
+        fig.update_layout(
+            hovermode="x unified",
+            height=400,
+            margin=dict(l=0, r=0)
+        )
+        st.plotly_chart(fig, use_container_width=True)
     else:
-        st.write("No text data available for the word cloud.")
+        st.warning("No data available for timeline analysis")
 
-    st.subheader("🍽️ Dish Mentions")
+    # Dish Popularity
+    st.subheader("🍽️ Dish Popularity Index")
     dish_columns = list(set(filtered_df.columns) & set(dish_keywords))
-    if dish_columns:
+    if dish_columns and not filtered_df.empty:
         dish_counts = filtered_df[dish_columns].sum().sort_values(ascending=False)
         fig = px.bar(dish_counts, orientation='h',
                      labels={'value': 'Mentions', 'index': 'Dish'},
-                     color=dish_counts.values, color_continuous_scale='Blues')
+                     color=dish_counts.values,
+                     color_continuous_scale='Blues')
+        fig.update_layout(showlegend=False, height=400)
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.write("No dish mentions found in the filtered data.")
+        st.warning("No dish mentions found in filtered reviews")
 
-# ======================
-# Advanced Insights
-# ======================
-st.header("🚀 Predictive Insights")
+with viz_col2:
+    # Sentiment Analysis
+    st.subheader("😃 Sentiment Landscape")
+    if not filtered_df.empty:
+        sentiment_counts = filtered_df['sentiment_category'].value_counts()
+        fig = px.pie(sentiment_counts,
+                     names=sentiment_counts.index,
+                     values=sentiment_counts.values,
+                     hole=0.4,
+                     color_discrete_sequence=['#00b894', '#fdcb6e', '#d63031'])
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No sentiment data available")
 
-st.subheader("🔮 Low Rating Risk Factors")
-coefs = pd.DataFrame({'word': vectorizer.get_feature_names_out(),
-                      'coef': model.coef_[0]}).sort_values('coef', ascending=False)
-
-top_risk_factors = coefs.head(5).set_index('word')
-top_positive_factors = coefs.tail(5).set_index('word')
-
-risk_col1, risk_col2 = st.columns(2)
-risk_col1.dataframe(top_risk_factors.style.background_gradient(cmap='Reds'))
-risk_col2.dataframe(top_positive_factors.style.background_gradient(cmap='Greens'))
+    # Word Cloud
+    st.subheader("🔍 Trending Keywords")
+    if not filtered_df.empty:
+        text = ' '.join(filtered_df['description'])
+        if text.strip():
+            stop_words = set(stopwords.words('english'))
+            wordcloud = WordCloud(width=800, height=400,
+                                  background_color='white',
+                                  stopwords=stop_words,
+                                  colormap='viridis').generate(text)
+            plt.figure(figsize=(10, 5))
+            plt.imshow(wordcloud, interpolation='bilinear')
+            plt.axis('off')
+            st.pyplot(plt, use_container_width=True)
+        else:
+            st.warning("No text content for word cloud")
+    else:
+        st.warning("No data available for word cloud")
 
 # ======================
 # Footer
 # ======================
 st.markdown("---")
-st.markdown("**Hackathon Ready Features:**  \n"
-            "- Real-time predictive analytics  \n"
-            "- Automated sentiment detection  \n"
-            "- Interactive filters  \n"
-            "- Risk factor identification")
-
+st.markdown("""
+<div style="text-align:center; padding:2rem 0; color:#636e72;">
+    <p style="font-size:0.9rem;">Tiffinwala Analytics Platform · Built for Excellence · Hackathon 2024</p>
+</div>
+""", unsafe_allow_html=True)
