@@ -2,7 +2,9 @@ streamlit
 transformers
 pandas
 plotly
-pytorch
+torch
+torchvision
+torchaudio
 wordcloud
 matplotlib
 textblob
