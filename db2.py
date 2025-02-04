@@ -171,12 +171,6 @@ def generate_summary(texts):
 # Dashboard Layout
 # ======================
 st.title("🍱 Tiffinwala Excellence Dashboard")
-st.markdown("""
-<div style="text-align:center; margin-bottom:2rem;">
-    <h3 style="color:#636e72;">Hackathon-Ready Analytics Platform</h3>
-    <p style="font-size:1.3rem;">Transform 1000+ reviews into actionable insights</p>
-</div>
-""", unsafe_allow_html=True)
 
 # Sidebar Controls
 with st.sidebar:
@@ -194,7 +188,7 @@ with st.sidebar:
         max_value=df['dates'].max()
     )
     st.markdown("---")
-    st.markdown("**Made with ❤️ by Your Team**")
+    st.markdown("**Made with ❤️ by RudraX**")
 
 # Apply filters
 filtered_df = df[
@@ -354,8 +348,3 @@ with viz_col2:
 # Footer
 # ======================
 st.markdown("---")
-st.markdown("""
-<div style="text-align:center; padding:2rem 0; color:#636e72;">
-    Tiffinwala Analytics Platform · Built for Excellence · Hackathon 2024
-</div>
-""", unsafe_allow_html=True)
