@@ -13,3 +13,5 @@ static/
 
 # Template files
 templates/
+
+db3.py
